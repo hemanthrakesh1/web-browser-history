@@ -1,0 +1,163 @@
+ccc code
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_URL_LEN 1024
+char *my_strdup(const char *s) {
+    if (!s) return NULL;
+    size_t len = strlen(s) + 1;
+    char *copy = malloc(len);
+    if (copy) memcpy(copy, s, len);
+    return copy;
+}
+typedef struct Node {
+    char *url;
+    struct Node *next;
+} Node;
+
+void push(Node **top, const char *url) {
+    Node *n = malloc(sizeof(Node));
+    if (!n) {
+        fprintf(stderr, "Memory allocation failed in push\n");
+        exit(EXIT_FAILURE);
+    }
+    n->url = my_strdup(url);
+    n->next = *top;
+    *top = n;
+}
+
+char *pop(Node **top) {
+    if (!*top) return NULL;
+    Node *n = *top;
+    char *url = n->url;   
+    *top = n->next;
+    free(n);
+    return url;
+}
+
+char *peek(Node *top) {
+    return top ? top->url : NULL;
+}
+
+void free_stack(Node **top) {
+    while (*top) {
+        char *s = pop(top);
+        free(s);
+    }
+}
+
+void clear_stack(Node **top) {
+    free_stack(top);
+}
+
+void print_stack(Node *top) {
+    if (!top) {
+        printf("[empty]\n");
+        return;
+    }
+    Node *cur = top;
+    while (cur) {
+        printf("%s\n", cur->url);
+        cur = cur->next;
+    }
+}
+
+int main(void) {
+    Node *back = NULL;     
+    Node *forward = NULL;  
+    char current[MAX_URL_LEN] = "";
+
+    char command[16];
+    printf("Simple Browser History (type 'help' for commands)\n");
+
+    while (1) {
+        printf("\n> ");
+        if (scanf("%15s", command) != 1) break;
+
+        if (strcmp(command, "visit") == 0) {
+            
+            char url[MAX_URL_LEN];
+            while (getchar() == ' ');
+            if (!fgets(url, sizeof(url), stdin)) url[0] = '\0';
+            size_t len = strlen(url);
+            if (len && url[len - 1] == '\n') url[len - 1] = '\0';
+
+            if (strlen(url) == 0) {
+                printf("No URL provided.\n");
+                continue;
+            }
+
+            if (current[0] != '\0') {
+                push(&back, current);
+            }
+
+            clear_stack(&forward);
+            strncpy(current, url, sizeof(current) - 1);
+            current[sizeof(current) - 1] = '\0';
+
+            printf("Visited: %s\n", current);
+
+        } else if (strcmp(command, "back") == 0) {
+            if (!back) {
+                printf("No page to go back to.\n");
+                continue;
+            }
+            if (current[0] != '\0') push(&forward, current);
+            char *prev = pop(&back);
+            if (prev) {
+                strncpy(current, prev, sizeof(current) - 1);
+                current[sizeof(current) - 1] = '\0';
+                free(prev);
+            }
+            printf("Current: %s\n", current);
+
+        } else if (strcmp(command, "forward") == 0) {
+            if (!forward) {
+                printf("No page to go forward to.\n");
+                continue;
+            }
+            if (current[0] != '\0') push(&back, current);
+            char *next = pop(&forward);
+            if (next) {
+                strncpy(current, next, sizeof(current) - 1);
+                current[sizeof(current) - 1] = '\0';
+                free(next);
+            }
+            printf("Current: %s\n", current);
+
+        } else if (strcmp(command, "show") == 0) {
+            printf("Current page:\n");
+            if (current[0] == '\0') printf("[none]\n");
+            else printf("%s\n", current);
+
+            printf("\nBack stack (top -> bottom):\n");
+            print_stack(back);
+
+            printf("\nForward stack (top -> bottom):\n");
+            print_stack(forward);
+
+        } else if (strcmp(command, "help") == 0) {
+            printf("Commands:\n");
+            printf(" visit <url>  : Visit a new URL (example: visit https://example.com)\n");
+            printf(" back         : Go back to the previous page\n");
+            printf(" forward      : Go forward to the next page\n");
+            printf(" show         : Show current page and stacks\n");
+            printf(" exit         : Quit program\n");
+
+        } else if (strcmp(command, "exit") == 0) {
+            break;
+
+        } else {
+            printf("Unknown command. Type 'help' for list of commands.\n");
+        }
+
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF) {}
+    }
+
+    free_stack(&back);
+    free_stack(&forward);
+    return 0;
+}
